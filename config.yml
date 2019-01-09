@@ -1,0 +1,12 @@
+local:
+  upload_folder: './'
+
+  credential_file: ''xxxxxxxx'
+  
+cloud:
+  project: 'xxxxxxxx'
+  bucket: 'xxxxxxxx'
+  folder: 'xxxxxxxx'
+  BQ_project: 'xxxxxxxx'
+  BQ_datasource: 'xxxxxxxx'
+  BQ_table: ''
