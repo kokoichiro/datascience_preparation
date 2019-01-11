@@ -15,6 +15,7 @@ argparse = "*"
 pathlib = "*"
 dask = {version = "*", extras = ["dataframe"]}
 pyyaml = "*"
+pandas-gbq = "*"
 
 [requires]
 python_version = "3.5"

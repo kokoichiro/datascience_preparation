@@ -4,3 +4,6 @@
 ./elo/
 /microsoft/
 /elo/
+./config_real.yml
+./credential/
+/credential/

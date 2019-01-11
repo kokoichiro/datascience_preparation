@@ -1,0 +1,12 @@
+local:
+  upload_folder: './elo/'
+
+  credential_file: './credentail/cred_kokoichiro.json'
+  
+cloud:
+  project: 'plenary-genre-642'
+  bucket: 'cory_kaggle'
+  folder: 'elo'
+  BQ_project: 'plenary-genre-642'
+  BQ_datasource: 'kaggle_elo'
+  BQ_table: ''

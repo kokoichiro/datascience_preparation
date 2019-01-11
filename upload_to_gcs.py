@@ -1,15 +1,18 @@
 import argparse
 from google.cloud import storage
+from google.cloud import bigquery
 from oauth2client.service_account import ServiceAccountCredentials
 import dask.dataframe as dd
 import yaml
 import gcsfs
 import os
+import pandas as pd
 from pathlib import Path
+import pandas_gbq
 
 
 
-def upload_blob(bucket_name, source_file_name, destination_blob_name):
+def from_local_to_gcs(bucket_name, source_file_name, destination_blob_name):
 	path_list=source_file_name.split('/')
 	filename=path_list[-1]
 	destination=destination_blob_name+'/'+filename
@@ -21,6 +24,7 @@ def upload_blob(bucket_name, source_file_name, destination_blob_name):
 		blob.upload_from_filename(source_file_name)
 	except MemoryError: 
 		i=1
+		chunksize=256 * 1024
 		for chunk in pd.read_csv(source_file_name, chunksize=chunksize):
 			destination_url='gs://'+bucket_name+destination[:-4]+'-'+i+'-*.csv'
 			dask_df=dd.from_pandas(df,npartitions=1)
@@ -30,7 +34,33 @@ def upload_blob(bucket_name, source_file_name, destination_blob_name):
 	print('File {} uploaded to {}.'.format(
 	source_file_name,
 	destination_blob_name))
-    		
+
+def get_schema(source_file_name):
+	df_schema=pd.read_csv(source_file_name,nrows=10)
+	schema=gbq.generate_bq_schema(df_schema, default_type='STRING')
+	return schema
+
+
+def from_local_to_bq(project_id,dataset_id,source_file_name):
+	path_list=source_file_name.split('/')
+	table_id=path_list[-1]
+	chunksize=256 * 1024
+	client=bigquery.Client()
+	datasets = list(client.list_datasets())
+	if dataset_id not in datasets:
+		dataset_ref=client.dataset(dataset_id)
+		dataset=bigquery.Dataset(dataset_ref)
+		dataset.location='US'
+		dataset=client.create_dataset(dataset)
+
+	destination_bq=dataset_id+'.'+table_id
+	try:
+		df=pd.read_csv(source_file_name)
+		df.to_gbq(destination_bq, project_id=project_id,if_exists='replace')
+	except MemoryError:
+		for chunk in pd.read_csv(source_file_name, chunksize=chunksize):
+			chunk.to_gbq(destination_bq, project_id=project_id,chunksize=chunksize,if_exists='append')
+
 
 def read_configuration(configuration_file):
 	with open(configuration_file, 'r') as ymlfile:
@@ -62,5 +92,6 @@ if __name__ == "__main__":
 	upload_folder,credential_file,project,bucket,folder,BQ_project,BQ_datasource,BQ_table=read_configuration(args.configuration)
 	file_list=file_search(upload_folder)
 	for f in file_list:
-		upload_blob(bucket,f,folder)
+		from_local_to_gcs(bucket,f,folder)
 		print('Uploaded '+f)
+		from_local_to_bq(BQ_project,BQ_datasource,f)
