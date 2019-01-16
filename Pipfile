@@ -16,6 +16,8 @@ pathlib = "*"
 dask = {version = "*", extras = ["dataframe"]}
 pyyaml = "*"
 pandas-gbq = "*"
+apiclient = "*"
+google-api-python-client = "*"
 
 [requires]
 python_version = "3.5"

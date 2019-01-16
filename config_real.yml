@@ -1,7 +1,7 @@
 local:
   upload_folder: './elo/'
 
-  credential_file: './credentail/cred_kokoichiro.json'
+  credential_file: './credential/kokoichiroanalysis-c15f6fd5f796.json'
   
 cloud:
   project: 'plenary-genre-642'
@@ -9,4 +9,3 @@ cloud:
   folder: 'elo'
   BQ_project: 'plenary-genre-642'
   BQ_datasource: 'kaggle_elo'
-  BQ_table: ''
