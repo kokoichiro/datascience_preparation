@@ -8,6 +8,7 @@ import datetime
 import pandas as pd
 from pathlib import Path
 import pandas_gbq.gbq as gbq
+import pandas_gbq
 
 
 from google.cloud import storage
@@ -31,8 +32,6 @@ class gcptransfer:
 		#	)
 
 		#bq_client=bigquery.Client.from_service_account_json(credential_file)
-		
-
 
 		table_parts=gcs_url.split('/')
 
@@ -64,8 +63,12 @@ class gcptransfer:
 		#job_config.time_partitioning = bigquery.table.TimePartitioning(field='datetime_local')
 		job_config.skip_leading_rows = 1
 		job_config.source_format = bigquery.SourceFormat.CSV
-		df=dd.read_csv(gcs_url,blocksize=2e6).compute()
+		df=dd.read_csv(gcs_url,encoding='utf-8',dtype='object')
+
+		df=df.get_partition(1).compute()
+		df=gcptransfer.change_dtype(df)
 		df_schema=gbq.generate_bq_schema(df, default_type='STRING')
+
 
 		job_config.schema=gcptransfer.schema_generator(df_schema)
 
@@ -82,6 +85,15 @@ class gcptransfer:
 				print('Job finished.  {}  is uploaded to {}'.format(gcs_url,bq_table_location))
 			except Exception as e:
 				print(e)
+
+
+	def change_dtype(df):
+		columns=df.columns
+		for column in columns:
+			if str(df.loc[0,column]).isdigit():
+				df[column]=pd.to_numeric(df[column],errors='coerce')
+		return df
+
 
 
 	def schema_generator(df_schema):
@@ -141,27 +153,19 @@ class gcptransfer:
 		return schema
 
 
-	def from_local_to_bq(project_id,dataset_id,source_file_name):
+	def from_local_to_bq(project_id,dataset_id,source_file_name,bq_client):
 		path_list=source_file_name.split('/')
 		table_id=path_list[-1]
 		chunksize=256 * 1024
-		client=bigquery.Client(project=project_id)
-		datasets = list(client.list_datasets())
-		#print(datasets)
-		'''
-		exist_flg=False
-		for dataset in datasets:
-			if dataset_id == dataset.friendly_name:
-				exist_flg=True
-			else:
-				print(dataset.friendly_name)
 
-		if exist_flg:
-			dataset_ref=client.dataset(dataset_id)
-			dataset=bigquery.Dataset(dataset_ref)
-			dataset.location='US'
-			dataset=client.create_dataset(dataset)
-		'''
+		dataset_id=bq_dataset_id
+		dataset_ref = bq_client.dataset(dataset_id)
+		try:
+			dataset=bq_client.get_dataset(dataset_ref)
+		except Exception as e:
+			dataset = bigquery.Dataset(dataset_ref)
+			dataset = bq_client.create_dataset(dataset)
+		
 
 		destination_bq=dataset_id+'.'+table_id
 		print(destination_bq)
@@ -181,12 +185,8 @@ class gcptransfer:
 		project=cfg['cloud']['project']
 		bucket=cfg['cloud']['bucket']
 		folder=cfg['cloud']['folder']
-		BQ_project=cfg['cloud']['BQ_project']
-		BQ_datasource=cfg['cloud']['BQ_datasource']
+		return upload_folder,credential_file,project,bucket,folder
 
-		
-
-		return upload_folder,credential_file,project,bucket,folder,BQ_project,BQ_datasource
 
 	def file_search(upload_folder):
 		p = Path(upload_folder)
@@ -196,21 +196,25 @@ class gcptransfer:
 			f_list.append(f.as_posix())
 		return f_list
 
+	def gcp_client(credential_file):
+		storage_client = storage.Client().from_service_account_json(credential_file)
+		bq_client=bigquery.Client().from_service_account_json(credential_file)
+		return storage_client,bq_client
+
 
 if __name__ == "__main__":
 	from handle_gcp import gcptransfer
 	print(datetime.datetime.now())
-	parser = argparse.ArgumentParser()
+	parser = argparse.ArgumentParser(description='You need to specify the location of config file and file option')
 	parser.add_argument('configuration', help = 'the location of configuration file')
 	args=parser.parse_args()
-	upload_folder,credential_file,project,bucket,folder,BQ_project,BQ_datasource=gcptransfer.read_configuration(args.configuration)
-	storage_client = storage.Client().from_service_account_json(credential_file)
-	bq_client=bigquery.Client().from_service_account_json(credential_file)
+	upload_folder,credential_file,project,bucket,folder=gcptransfer.read_configuration(args.configuration)
 
+	storage_client,bq_client=gcptransfer.gcp_client(credential_file)
 	file_list=gcptransfer.file_search(upload_folder)
 
 
-
+	
 	for f in file_list:
 		print(f)
 		gcs_urls=gcptransfer.from_local_to_gcs(bucket,f,folder,storage_client)
@@ -221,7 +225,7 @@ if __name__ == "__main__":
 
 		for gcs_f in gcs_urls:
 			print(gcs_f)
-			gcptransfer.from_gcs_to_bq(gcs_f,BQ_project,BQ_datasource,bq_client)
+			gcptransfer.from_gcs_to_bq(gcs_f,project,folder,bq_client)
 
-		#search_gcs(bucket,folder)
-		#from_local_to_bq(BQ_project,BQ_datasource,f)
+		
+		#from_local_to_bq(project,folder,f,bq_client)
