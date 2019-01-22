@@ -3,8 +3,9 @@
 
 /microsoft/
 /elo/
+.config_real.yml
 config_real.yml
-./config_real.yml
+/config_real.yml
 /credential/
 /quora/
 /whale/

@@ -1,8 +1,0 @@
-local:
-  upload_folder: './quora/'
-  credential_file: './credential/kokoichiroanalysis-c15f6fd5f796.json'
-  
-cloud:
-  project: 'plenary-genre-642'
-  bucket: 'cory_kaggle'
-  folder: 'quora'
