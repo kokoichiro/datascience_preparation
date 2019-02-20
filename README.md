@@ -50,7 +50,7 @@ cloud:
 tbd
 
 
-### IQO_executor.py
+### upload_to_gcs.py`
 This code pulls all parameters from yaml file and upload all files in the folder to GCS.
 The actual example is below.
 ```
