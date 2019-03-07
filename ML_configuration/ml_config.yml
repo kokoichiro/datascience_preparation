@@ -1,0 +1,11 @@
+file:
+        training_file: './santandar/train.csv'
+        test_file: './santandar/test.csv'
+        submission_file: './santandar/submission.csv'
+
+ML_parameter: 
+        explore_test_rate: 0.95
+        target_name: 'target'
+        target_metric: 'accuracy'
+        training_rate: 0.99
+        n_jobs: 30
