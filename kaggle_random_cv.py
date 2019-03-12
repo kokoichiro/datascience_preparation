@@ -32,6 +32,7 @@ import yaml
 import time
 import os
 import sys
+import pickle
 
 import argparse
 from random import randint
@@ -47,7 +48,7 @@ class kaggleexploration():
 		self.target_metric=None
 		self.training_rate=0
 		self.n_jobs=0
-		self.record_txt=None
+		self.record_pkl=None
 		self.id=None
 
 	def set_parameters(self,
@@ -60,7 +61,7 @@ class kaggleexploration():
 		target_metric=None,
 		training_rate=0,
 		n_jobs=0,
-		record_txt=None,
+		record_pkl=None,
 		id=None):
 		with open(config_loc,'r') as ymlfile:
 			cfg = yaml.load(ymlfile)
@@ -73,7 +74,7 @@ class kaggleexploration():
 		self.target_metric=cfg['ML_parameter']['target_metric']
 		self.training_rate=cfg['ML_parameter']['training_rate']
 		self.n_jobs=cfg['ML_parameter']['n_jobs']
-		self.record_txt=cfg['file']['record_txt']
+		self.record_pkl=cfg['file']['record_pkl']
 		self.id=cfg['ML_parameter']['id']
 
 
@@ -288,7 +289,19 @@ class kaggleexploration():
 			print('The error happens')
 
 
+		
+	def load_pickle(self,pickle_file):
+		try:
+			with open(pickle_file, 'rb') as f:
+				pickle_data = pickle.load(f)
+		except UnicodeDecodeError as e:
+			with open(pickle_file, 'rb') as f:
+				pickle_data = pickle.load(f, encoding='latin1')
+		except Exception as e:
+			print('Unable to load data ', pickle_file, ':', e)
+			raise
 
+		return pickle_data
 
 
 
@@ -309,26 +322,21 @@ if __name__ == "__main__":
 	train_features1=df_train[exp.target_name]
 	train_labels1=df_train.drop(exp.id,axis=1)
 	train_labels1=train_labels1.drop(exp.target_name,axis=1)
-	if args.mode == 'all' or 'random_search':
+	if args.mode == 'all' or args.mode == 'random_search':
 		y_train, y_test, X_train, X_test = train_test_split(train_features1, train_labels1,test_size=exp.explore_test_rate, random_state=0)
 		a,b,c=exp.best_estimater(X_train, y_train,X_test,y_test,exp.target_metric)
 		a_txt = str(a)
 
-		with  open(exp.record_txt,mode='w') as f:
-			f.write(a_text)
-			f.write(b)
-			f.write(c)
-	if args.mode == 'all' or 'simple_ml':
+		with  open(exp.record_pkl,mode='wb') as f:
+			pickle.dump(a, f)
+		with open('./best_ml_text.p', 'wb') as f:
+			pickle.dump(a_txt, f)    
+	if args.mode == 'all' or args.mode == 'simple_ml':
 
 		if args.mode == 'all':
 			ML=a
 		elif args.mode == 'simple_ml':
-			ML=VotingClassifier(estimators=[('lr', LogisticRegression(C=199, class_weight='balanced', dual=False,
-			fit_intercept=True, intercept_scaling=1, max_iter=100,
-			multi_class='ovr', n_jobs=1, penalty='l2', random_state=1,
-			solver='liblinear', tol=0.0001, verbose=0, warm_start=False)), ('rf', Rand...=False, random_state=1,
-			verbose=0, warm_start=False)), ('gnb', GaussianNB(priors=None))],
-			flatten_transform=None, n_jobs=1, voting='soft', weights=None)
+			ML=exp.load_pickle(exp.record_pkl)
 		ML.fit(train_labels1,train_features1)
 		#ML.fit(X_train, y_train)
 		df_test=pd.read_csv(exp.test_file)
