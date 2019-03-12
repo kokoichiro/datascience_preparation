@@ -18,6 +18,7 @@ pyyaml = "*"
 pandas-gbq = "*"
 apiclient = "*"
 google-api-python-client = "*"
+scikit-learn = "*"
 
 [requires]
 python_version = "3.5"
