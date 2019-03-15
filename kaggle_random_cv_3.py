@@ -87,16 +87,6 @@ class kaggleexploration():
 		print("Accuracy: %0.2f (+/- %0.2f)" % (scores.mean(), scores.std() * 2))
 
 
-	def random_searchSVM(self,train_features, train_labels, n_jobs,objective):
-		param_dist = {
-	#   {'C': [1, 10, 100], 'kernel': ['linear']},
-						#'C': [1,10,50,100], 'gamma': [0.0001, 0.001], 'kernel': ['rbf','linear']}
-	  	'C': [1], 'gamma': [0.001], 'kernel': ['rbf']}
-	
-
-		clf = GridSearchCV(svm.SVC(class_weight="balanced"), param_dist,n_jobs=n_jobs,scoring=objective)
-		clf.fit(train_features, train_labels)
-		return clf.best_estimator_,clf.best_score_,clf.best_params_
 
 	def random_searchGB(self,train_features, train_labels, n_jobs,objective):
 		param_dist = {'n_estimators': randint(5, 300),
@@ -114,19 +104,11 @@ class kaggleexploration():
 			'max_features'  : randint(3, 20),
 			'min_samples_split' : randint(3, 100),
 			'max_depth' : randint(4, 30)}
+		print(param_dist)
 		clf = RandomizedSearchCV(RandomForestClassifier(class_weight="balanced"), param_dist,n_jobs=n_jobs,scoring=objective)
 		clf.fit(train_features, train_labels)
 		return clf.best_estimator_,clf.best_score_,clf.best_params_
 
-	def random_searchVC(self,train_features,train_labels,n_jobs,objective):
-		clf1 = LogisticRegression(random_state=1,class_weight="balanced")
-		clf2 = RandomForestClassifier(random_state=1,class_weight="balanced")
-		clf3 = GaussianNB()
-		eclf = VotingClassifier(estimators=[('lr', clf1), ('rf', clf2), ('gnb', clf3)], voting='soft')
-		params = {'lr__C': randint(1, 300), 'rf__n_estimators': randint(5, 300),'rf__max_features':randint(3, 20),'rf__min_samples_split' : randint(3, 100),'rf__max_depth':randint(3, 100)}
-		clf = RandomizedSearchCV(estimator=eclf,param_distributions=params,n_jobs=n_jobs,scoring=objective)
-		clf.fit(train_features, train_labels)
-		return clf.best_estimator_,clf.best_score_,clf.best_params_
 
 	def random_searchAB(self,train_features,train_labels,n_jobs,objective):
 		param_dist = {
@@ -165,16 +147,6 @@ class kaggleexploration():
 		print("---GB finished %s seconds ---" % round(time.time() - duration_time,2))
 		duration_time = time.time()
 		  
-		a_SVM,b_SVM,c_SVM=self.random_searchSVM(train_features, train_labels,n_jobs,objective)
-		  
-		print("---SVM finished %s seconds ---" % round(time.time() - duration_time,2))
-		duration_time = time.time()
-		  
-		a_VC,b_VC,c_VC=self.random_searchVC(train_features, train_labels,n_jobs,objective)
-		  
-		print("---VotingClassification finished %s seconds ---" % round(time.time() - start_time,2))
-		duration_time = time.time()
-		  
 		a_AB,b_AB,c_AB=self.random_searchAB(train_features, train_labels,n_jobs,objective)
 		  
 		print("---AdaBoost finished %s seconds ---" % round(time.time() - duration_time,2))
@@ -204,25 +176,7 @@ class kaggleexploration():
 		  
 		print("---GB fitting finished %s seconds ---" % round(time.time() - duration_time,2))
 		duration_time = time.time()
-		  
-		SVM_ML = a_SVM
-		SVM_ML.fit(train_features,train_labels)
-		SVM_ML.score(test_features,test_labels)
-		SVM_y_pred = SVM_ML.predict(test_features)
-		  
-		  
-		print("---SVM fitting finished %s seconds ---" % round(time.time() - duration_time,2))
-		duration_time = time.time()
-		  
-		  
-		VC_ML = a_VC
-		VC_ML.fit(train_features,train_labels)
-		VC_ML.score(test_features,test_labels)
-		VC_y_pred = VC_ML.predict(test_features)
-		  
-		  
-		print("---VotingClassification fitting finished %s seconds ---" % round(time.time() - duration_time,2))
-		duration_time = time.time()
+		
 		  
 		AB_ML = a_AB
 		AB_ML.fit(train_features,train_labels)
@@ -245,41 +199,29 @@ class kaggleexploration():
 		if objective == "f1":
 			RF_score=f1_score(test_labels, RF_y_pred)
 			GB_score=f1_score(test_labels, GB_y_pred)
-			SVM_score=f1_score(test_labels, SVM_y_pred)
-			VC_score=f1_score(test_labels, VC_y_pred)
 			NC_score=f1_score(test_labels, NC_y_pred)
 			AB_score=f1_score(test_labels, AB_y_pred)
 		elif objective == "recall":
 			RF_score=recall_score(test_labels, RF_y_pred)
 			GB_score=recall_score(test_labels, GB_y_pred)
-			SVM_score=recall_score(test_labels, SVM_y_pred)
-			VC_score=recall_score(test_labels, VC_y_pred)
 			NC_score=recall_score(test_labels, NC_y_pred)
 			AB_score=recall_score(test_labels, AB_y_pred)
 		elif objective == "accuracy":
 			RF_score=accuracy_score(test_labels, RF_y_pred)
 			GB_score=accuracy_score(test_labels, GB_y_pred)
-			SVM_score=accuracy_score(test_labels, SVM_y_pred)
-			VC_score=accuracy_score(test_labels, VC_y_pred)
 			NC_score=accuracy_score(test_labels, NC_y_pred)
 			AB_score=accuracy_score(test_labels, AB_y_pred)
 		elif objective == "roc_auc":
 			RF_score=roc_auc_score(test_labels, RF_y_pred)
 			GB_score=roc_auc_score(test_labels, GB_y_pred)
-			SVM_score=roc_auc_score(test_labels, SVM_y_pred)
-			VC_score=roc_auc_score(test_labels, VC_y_pred)
 			NC_score=roc_auc_score(test_labels, NC_y_pred)
 			AB_score=roc_auc_score(test_labels, AB_y_pred)
-		print ('RF:'+str(RF_score)+', GB:'+str(GB_score)+', SVM:'+str(SVM_score)+', VC:'+str(VC_score)+', AB:'+str(AB_score)+', NC:'+str(NC_score))
-		score_list = [RF_score,GB_score,SVM_score,VC_score,NC_score,AB_score]
+		print ('RF:'+str(RF_score)+', GB:'+str(GB_score)+', AB:'+str(AB_score)+', NC:'+str(NC_score))
+		score_list = [RF_score,GB_score,NC_score,AB_score]
 		if RF_score ==max(score_list):
 			return a_RF,b_RF,c_RF
 		elif GB_score ==max(score_list):
 			return a_GB,b_GB,c_GB
-		elif SVM_score ==max(score_list):
-			return a_SVM,b_SVM,c_SVM
-		elif VC_score ==max(score_list):
-			return a_VC,b_VC,c_VC
 		elif NC_score ==max(score_list):
 			return a_NC,b_NC,c_NC
 		elif AB_score ==max(score_list):

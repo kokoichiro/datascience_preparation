@@ -1,13 +1,14 @@
 file:
         training_file: './santandar/train.csv'
         test_file: './santandar/test.csv'
-        submission_file: './santandar/submission.csv'
-        record_pkl: './best_ml.p'
+        submission_file: './santandar/submission2.csv'
+        record_pkl: './best_ml2.p'
 
 ML_parameter: 
-        explore_test_rate: 0.95
+        explore_test_rate: 0.8
         target_name: 'target'
-        target_metric: 'accuracy'
-        training_rate: 0.99
-        n_jobs: -1
+        #you can select the metric from the list as ['f1','accuracy’',‘roc_auc’]
+        target_metric: 'f1'
+        training_rate: 0.8
+        n_jobs: 20
         id: 'ID_code'

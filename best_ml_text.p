@@ -1,0 +1,3 @@
+S"AdaBoostClassifier(algorithm='SAMME.R',\n          base_estimator=DecisionTreeClassifier(class_weight=None, criterion='gini', max_depth=1,\n            max_features=None, max_leaf_nodes=None,\n            min_impurity_decrease=0.0, min_impurity_split=None,\n            min_samples_leaf=1, min_samples_split=2,\n            min_weight_fraction_leaf=0.0, presort=False, random_state=None,\n            splitter='best'),\n          learning_rate=1.0, n_estimators=205, random_state=None)"
+p0
+.

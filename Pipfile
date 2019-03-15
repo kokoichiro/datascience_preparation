@@ -19,6 +19,8 @@ pandas-gbq = "*"
 apiclient = "*"
 google-api-python-client = "*"
 scikit-learn = "*"
+xgboost = "*"
+jupyter = "*"
 
 [requires]
 python_version = "3.5"
