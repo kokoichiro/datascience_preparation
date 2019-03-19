@@ -21,6 +21,8 @@ google-api-python-client = "*"
 scikit-learn = "*"
 xgboost = "*"
 jupyter = "*"
+lightgbm = "*"
+catboost = "*"
 
 [requires]
 python_version = "3.5"
