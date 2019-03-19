@@ -17,7 +17,7 @@ from sklearn.externals.six import StringIO
 #from imblearn.pipeline import make_pipeline
 from sklearn.preprocessing import MinMaxScaler,LabelEncoder,StandardScaler
 from sklearn.metrics import (brier_score_loss, precision_score, recall_score,roc_auc_score,
-                             f1_score,accuracy_score,confusion_matrix,mean_absolute_error,r2_score,mean_squared_error)
+ f1_score,accuracy_score,confusion_matrix,mean_absolute_error,r2_score,mean_squared_error)
 
 from datetime import datetime 
 from datetime import date
@@ -41,6 +41,7 @@ import argparse
 
 class mlxgboost():
 	def __init__(self):
+		self.home_folder=None
 		self.training_file=None
 		self.test_file=None
 		self.submission_file=None
@@ -51,31 +52,59 @@ class mlxgboost():
 		self.n_jobs=0
 		self.record_pkl=None
 		self.id=None
+		self.nfolds=0
 
 	def set_parameters(self,
 		config_loc,
 		training_file=None,
 		test_file=None,
 		submission_file=None,
+		home_folder=None,
 		explore_test_rate=0,
 		target_name=None,
 		target_metric=None,
 		training_rate=0,
 		n_jobs=0,
 		record_pkl=None,
-		id=None):
+		model_location=None,
+
+		id=None,
+		nfolds=0):
 		with open(config_loc,'r') as ymlfile:
 			cfg = yaml.load(ymlfile)
-		self.training_file=cfg['file']['training_file']
-		self.test_file=cfg['file']['test_file']
-		self.submission_file=cfg['file']['submission_file']
+		now = datetime.today()
+		today_str= now.strftime("%Y%m%d")
+
+		self.home_folder=cfg['file']['home_folder']
 		self.explore_test_rate=cfg['ML_parameter']['explore_test_rate']
 		self.target_name=cfg['ML_parameter']['target_name']
 		self.target_metric=cfg['ML_parameter']['target_metric']
 		self.training_rate=cfg['ML_parameter']['training_rate']
 		self.n_jobs=cfg['ML_parameter']['n_jobs']
 		self.record_pkl=cfg['file']['record_pkl']
+		record_model=str(self.record_pkl).split(".")
+		self.model_location=self.home_folder+'model/'+record_model[0]+'_'+today_str+'.'+record_model[1]
+		self.submission_file=self.home_folder+'submission/'+record_model[0]+'_'+today_str+'.csv'
+		self.training_file=self.home_folder+'data/train.csv'
+		self.test_file=self.home_folder+'data/test.csv'
 		self.id=cfg['ML_parameter']['id']
+		self.nfolds=cfg['ML_parameter']['nfolds']
+
+
+	def transform_data(self,df):
+		dummy_pclass=pd.get_dummies(df["Pclass"],prefix='Pclass')
+		dummy_Sex=pd.get_dummies(df["Sex"],prefix='Sex')
+		dummy_Embarked=pd.get_dummies(df["Embarked"],prefix='Embarked')
+		dummy_SibSp=pd.get_dummies(df["SibSp"],prefix='SibSp')
+		dummy_Parch=pd.get_dummies(df["Parch"],prefix='Parch')
+		train2=df.drop(['Pclass','Embarked','SibSp','Parch','Sex'],axis=1)
+		train2=pd.concat([train2,dummy_pclass],axis=1)
+		train2=pd.concat([train2,dummy_Embarked],axis=1)
+		train2=pd.concat([train2,dummy_Sex],axis=1)
+		train2=pd.concat([train2,dummy_SibSp],axis=1)
+		train2=pd.concat([train2,dummy_Parch],axis=1)
+		train2=train2.fillna(0)
+		return train2		
 
 	def load_pickle(self,pickle_file):
 		try:
@@ -107,27 +136,33 @@ if __name__ == "__main__":
 	parser.add_argument('--mode',required=False,help = 'You can select one variable from 3 parameters you can skip this parameter.',default='all',choices=['all','random_search','simple_ml'])
 
 	args=parser.parse_args()
-	now = datetime.today()
-	today_str= now.strftime("%Y%m%d")
+
 
 
 	from kaggle_random_xgboost import mlxgboost
 	xgbexp=mlxgboost()
 	xgbexp.set_parameters(args.configuration)
 	df_train=pd.read_csv(xgbexp.training_file)
-	train_features1=df_train[xgbexp.target_name]
-	train_labels1=df_train.drop(xgbexp.id,axis=1)
-	train_labels1=train_labels1.drop(xgbexp.target_name,axis=1)
+	train=df_train.drop(['PassengerId','Name','Ticket','Cabin'],axis=1)
+	df_train2=xgbexp.transform_data(train)
+	train_labels1=df_train2[xgbexp.target_name]
+	train_features1=df_train2.drop(xgbexp.target_name,axis=1)
 	params = {
-        'learning_rate': [0.01,0.02,0.3,0.5],'min_child_weight': [1, 5, 10],'gamma': [0.5, 1, 1.5, 2, 5],'subsample': [0.6, 0.8, 1.0],'colsample_bytree': [0.6, 0.8, 1.0],'max_depth': [3, 4, 5,10]
-        }
+		'learning_rate': [0.01,0.02,0.3,0.5],
+		'min_child_weight': [1, 5, 10,100],
+		'gamma': [0.5, 1, 1.5, 2, 5,10],
+		'subsample': [0.1,0.6, 0.8, 1.0],
+		'colsample_bytree': [0.3,0.6, 0.8, 1.0],
+		'max_depth': [3, 4, 5, 10,100]
+		}
 	xgb = XGBClassifier( objective='binary:logistic')
-	folds = 8
+	
 	param_comb = 5
 
-	X=train_labels1
-	Y=train_features1
-	skf = StratifiedKFold(n_splits=folds, shuffle = True, random_state = 1001)
+	X=train_features1
+	
+	Y=train_labels1
+	skf = StratifiedKFold(n_splits=xgbexp.nfolds, shuffle = True, random_state = 1001)
 	random_search = RandomizedSearchCV(xgb, param_distributions=params, n_iter=param_comb, scoring='f1', n_jobs=4, cv=skf.split(X,Y), verbose=3, random_state=1001 )
 	start_time = xgbexp.timer(None) # timing starts from this point for "start_time" variable
 	random_search.fit(X, Y)
@@ -137,18 +172,21 @@ if __name__ == "__main__":
 	print(random_search.cv_results_)
 	print('\n Best estimator:')
 	print(random_search.best_estimator_)
-	print('\n Best normalized gini score for %d-fold search with %d parameter combinations:' % (folds, param_comb))
+	print('\n Best normalized gini score for %d-fold search with %d parameter combinations:' % (xgbexp.nfolds, param_comb))
 	print(random_search.best_score_ * 2 - 1)
 	print('\n Best hyperparameters:')
 	print(random_search.best_params_)
 
-	model_name=today_str+'.model'
-	random_search.best_estimator_.save_model(model_name)
+	
+	random_search.best_estimator_.save_model(xgbexp.model_location)
 
-	df_test=pd.read_csv('./santandar/test.csv')
-	df_label_test=df_test.drop('ID_code',axis=1)
+	df_test=pd.read_csv(xgbexp.test_file)
+	df_label_test=xgbexp.transform_data(df_test)
+	#print(df_label_test.columns)
+	df_label_test=df_label_test.drop(['PassengerId','Name','Ticket','Cabin','Parch_9'],axis=1)
 	y_test = random_search.predict(df_label_test)
 	y_pred=pd.DataFrame(y_test)
-	df_answer=pd.concat([df_test["ID_code"],y_pred],axis=1)
-	output_name='./santandar/submission_xgbt'+today_str+'.csv'
+	df_answer=pd.concat([df_test[xgbexp.id],y_pred],axis=1)
+	df_answer.columns=[xgbexp.id,xgbexp.target_name]
+	output_name=xgbexp.submission_file
 	df_answer.to_csv(output_name,index=False)

@@ -1,0 +1,14 @@
+file:
+        home_folder: '/home/dev-cory/temp/kaggle/sample_competition/'
+        record_pkl: 'best_ml2.p'
+
+ML_parameter: 
+        explore_test_rate: 0.8
+        target_name: "Survived"
+        #you can select the metric from the list as ['f1','accuracy’',‘roc_auc’]
+        target_metric: 'f1'
+        training_rate: 0.8
+        n_jobs: 20
+        id: "PassengerId"
+        nfolds: 3
+        
