@@ -2,6 +2,8 @@ microsoft/*
 elo/*
 santandar/*
 santandar/
+earthquake/
+earthquake/*
 microsoft/
 elo/
 .config_real.yml

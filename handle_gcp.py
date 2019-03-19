@@ -222,10 +222,10 @@ if __name__ == "__main__":
 		for index, gcs_url in enumerate(gcs_urls):
 			print("gcs file, " + gcs_url + ", is in position " + str(index) + ".")
 		'''
-
-		for gcs_f in gcs_urls:
-			print(gcs_f)
-			gcptransfer.from_gcs_to_bq(gcs_f,project,folder,bq_client)
+		if 'train' in str(f):
+				for gcs_f in gcs_urls:
+					print(gcs_f)
+					gcptransfer.from_gcs_to_bq(gcs_f,project,folder,bq_client)
 
 		
 		#from_local_to_bq(project,folder,f,bq_client)
