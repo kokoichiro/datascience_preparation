@@ -23,6 +23,7 @@ xgboost = "*"
 jupyter = "*"
 lightgbm = "*"
 catboost = "*"
+optuna = "*"
 
 [requires]
 python_version = "3.5"
