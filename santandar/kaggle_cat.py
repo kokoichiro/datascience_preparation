@@ -182,11 +182,35 @@ class multipleboosts():
 		roc_auc = roc_auc_score(test_y, pred_labels)
 		return 1.0 - roc_auc
 
+	def new_columns_naming(text,columns):
+		new_columns=[]
+		for column in columns:
+			new_column=text+'_'+str(column)
+			new_columns.append(new_column)
+		return new_columns
+
+
 	def feature_engineering(train,test):
-		merged=pd.concat([train,test])
+		merged=pd.concat([train,test],axis=0)
+		merged=merged.reset_index(drop=True)
+		merged.columns=train.columns
 		len_train=len(train)
-		original_features = merged.columns
-		idx = features = merged.columns.values[0:200]
+		t=test.drop('ID_code',axis=1)
+		original_features = t.columns
+		#idx = features = merged.columns.values[0:200]
+
+		sc1=MinMaxScaler()
+		sc2=StandardScaler()
+
+		#print(merged.describe())
+		#print(merged.info())
+		#print(merged_4.info())
+		merged2=np.array(merged[original_features])
+		sc1.fit(merged2)
+		sc2.fit(merged2)
+		tc1=sc1.transform(merged2)
+		tc2=sc1.transform(merged2)
+		'''
 		for df in [merged]:
 			df['sum'] = df[idx].sum(axis=1)  
 			df['min'] = df[idx].min(axis=1)
@@ -196,7 +220,23 @@ class multipleboosts():
 			df['skew'] = df[idx].skew(axis=1)
 			df['kurt'] = df[idx].kurtosis(axis=1)
 			df['med'] = df[idx].median(axis=1)
-		train = merged.iloc[:len_train]
+		'''
+		new_column_name_1=multipleboosts.new_columns_naming('tc1',original_features)
+		new_column_name_2=multipleboosts.new_columns_naming('tc2',original_features)
+
+
+		df1=pd.DataFrame(data=tc1,columns=new_column_name_1)
+		df2=pd.DataFrame(data=tc2,columns=new_column_name_2)
+		df1=df1.reset_index(drop=True)
+		df2=df2.reset_index(drop=True)
+
+		#merged=pd.concat([merged,df1],axis=1)
+		#merged=pd.concat([merged,df2],axis=1)
+
+		merged=merged.join(df1,how='inner')
+		merged=merged.join(df2,how='inner')
+
+		train=merged.iloc[:len_train-1]
 		test=merged.iloc[len_train:]
 		return train,test
 
@@ -215,19 +255,28 @@ if __name__ == "__main__":
 	mulb.set_parameters(args.configuration)
 	df_train=pd.read_csv(mulb.training_file)
 	df_test=pd.read_csv(mulb.test_file)
-	train,df_test2=multipleboosts.feature_engineering(df_train,df_test)
+	df_train,df_test=multipleboosts.feature_engineering(df_train,df_test)
+	#df_train.head(100).to_csv('./train.csv')
+	
+	
+	df_train=df_train.fillna(0)
+	df_test=df_test.fillna(0)
+	df_test=df_test.reset_index(drop=True)
+	df_label_test=df_test.drop([mulb.id,mulb.target_name],axis=1)
 
 	train_labels1=df_train[mulb.target_name]
-	#train_features1=df_train.drop(mulb.id,axis=1)
-	#train_features1=train_features1.drop(mulb.target_name,axis=1)
 
-
+	train_features1=df_train.drop(mulb.id,axis=1)
+	train_features1=train_features1.drop(mulb.target_name,axis=1)
+	#train_features1=train_features1.values.astype(float)
+	
+	train_labels1=train_labels1.values.astype(int)
 
 	#cat_params={}
 
 
 
-	'''
+	
 	xgb_params = {
 		'learning_rate': [0.02],
 		'min_child_weight': [3,10],
@@ -260,23 +309,23 @@ if __name__ == "__main__":
 		}
 
 	xgb = XGBClassifier(objective='binary:logistic',eval_metric='auc')
-	'''
 	
 	
-	#cat = CatBoostClassifier(objective="Logloss",iterations=1500,random_strength= 31, od_wait=48, depth=7, od_type='Iter', learning_rate=0.10865326635428631,bagging_temperature=0.7211291811497454)
-	cat = CatBoostClassifier(objective="Logloss",iterations=4000,random_strength= 31, od_wait=48, depth=7, od_type='Iter', learning_rate=0.10865326635428631,bagging_temperature=0.7211291811497454)
+	
+	
+	cat = CatBoostClassifier(objective="Logloss",iterations=1000,random_strength= 31, od_wait=48, depth=7, od_type='Iter', learning_rate=0.10865326635428631,bagging_temperature=0.7211291811497454)
 	#cat_features=[0,1]
-	trained_cat=cat.fit(train,train_labels1)
+	#trained_cat=cat.fit(train_features1,train_labels1)
 
 	
-	'''
+	
 	lgb = LGBMClassifier(objective="binary")
 
 
 	param_comb = 3
 
-	X=train_labels1
-	Y=train_features1
+	X=train_features1
+	Y=train_labels1
 
 	skf = StratifiedKFold(n_splits=mulb.nfolds, shuffle = True, random_state = 1001)
 	random_search_cat = RandomizedSearchCV(cat, param_distributions=cat_params, n_iter=param_comb, scoring=mulb.target_metric, n_jobs=4, cv=skf.split(X,Y), verbose=3, random_state=1001)
@@ -301,7 +350,6 @@ if __name__ == "__main__":
 	elif random_search_cat.best_score_ >= random_search_xgb.best_score_ and random_search_cat.best_score_ >= random_search_lgb.best_score_:
 		random_search=random_search_cat
 	elif random_search_lgb.best_score_ >= random_search_cat.best_score_ and random_search_lgb.best_score_ >= random_search_xgb.best_score_:
-	
 		random_search=random_search_lgb
 		
 
@@ -327,8 +375,10 @@ if __name__ == "__main__":
 	
 
 	
-	#df_label_test=df_test.drop(mulb.id,axis=1)
-	y_test = trained_cat.predict_proba(df_test2)
+	
+
+	df_label_test=df_label_test.values.astype(float)
+	y_test = trained_cat.predict_proba(df_label_test)
 	y_pred=pd.DataFrame(y_test)
 	y_pred=y_pred.loc[:,1]
 
@@ -336,4 +386,4 @@ if __name__ == "__main__":
 	df_answer.columns=[mulb.id,mulb.target_name]
 	output_name=mulb.submission_file
 	df_answer.to_csv(output_name,index=False)
-	
+	'''
