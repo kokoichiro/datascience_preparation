@@ -179,7 +179,7 @@ class gcptransfer:
 
 	def read_configuration(configuration_file):
 		with open(configuration_file, 'r') as ymlfile:
-			cfg = yaml.load(ymlfile)
+			cfg = yaml.load(ymlfile,Loader=yaml.BaseLoader)
 		upload_folder=cfg['local']['upload_folder']
 		credential_file=cfg['local']['credential_file']
 		project=cfg['cloud']['project']
